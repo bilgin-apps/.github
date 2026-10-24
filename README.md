@@ -33,3 +33,17 @@ Each product repository can also maintain its own more specific documentation, d
 ```
 
 > This is an organization configuration repository. No application code, production credentials, or private keys should be committed here.
+
+## Project management
+
+Bilgin Apps maintains a private, three-board GitHub Projects V2 operating model for:
+
+- **Bilgin Exam TR** — backend, admin, mobile, web, content, QA and release work.
+- **Bilgin ABC** — Turkish early-literacy product planning, initially as private Project draft items.
+- **Bilgin Apps Roadmap** — cross-product milestones, dependencies and release governance.
+
+- [Project management standards](docs/PROJECT_MANAGEMENT.md)
+- [Projects provisioning and verification](docs/PROJECTS_SETUP.md)
+- [Repeatable GitHub Projects bootstrap](scripts/bootstrap_projects.py)
+
+> GitHub Projects must be provisioned with an organization account with Projects write access. Committing the configuration is not equivalent to creating the live boards.
