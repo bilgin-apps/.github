@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "Report a security vulnerability"
+    url: "https://github.com/bilgin-apps/.github/blob/main/SECURITY.md"
+    about: "Do not create a public issue for a vulnerability. Follow the private reporting instructions."
+  - name: "Support and general questions"
+    url: "https://github.com/bilgin-apps/.github/blob/main/SUPPORT.md"
+    about: "Read the support guidance before opening a product issue."
