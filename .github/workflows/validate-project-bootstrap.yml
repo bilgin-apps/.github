@@ -11,6 +11,7 @@ on:
     paths:
       - "scripts/bootstrap_projects.py"
       - ".github/workflows/validate-project-bootstrap.yml"
+      - "tests/test_bootstrap_projects.py"
 
 permissions:
   contents: read
