@@ -6,6 +6,7 @@ on:
     paths:
       - "scripts/bootstrap_projects.py"
       - ".github/workflows/validate-project-bootstrap.yml"
+      - "tests/test_bootstrap_projects.py"
   pull_request:
     paths:
       - "scripts/bootstrap_projects.py"
@@ -50,3 +51,6 @@ jobs:
           ]
           print("Organization Projects bootstrap configuration validated.")
           PY
+
+      - name: Run local bootstrap unit tests
+        run: python3 -m unittest discover -s tests -v
