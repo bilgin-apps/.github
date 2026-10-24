@@ -1,0 +1,87 @@
+name: "Feature request"
+description: "Propose an improvement to the learning experience or product capabilities."
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share the user problem and the outcome you want to achieve, not just a proposed implementation.
+
+        Search existing issues before submitting. Please do not include confidential product plans or user information in public repositories.
+  - type: dropdown
+    id: product
+    attributes:
+      label: Product
+      options:
+        - "Bilgin Exam TR"
+        - "Bilgin ABC"
+        - "Shared infrastructure / organization"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Product area
+      options:
+        - "Learning experience"
+        - "Content and curriculum"
+        - "Progress and gamification"
+        - "Accessibility and localization"
+        - "Account and onboarding"
+        - "Subscriptions and monetization"
+        - "Admin tools"
+        - "Developer experience / infrastructure"
+        - "Other"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: Who experiences the problem, and why does it matter?
+      placeholder: "Learners need a clearer way to..."
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe what success looks like for the user and the product.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Outline a potential approach. This is a suggestion, not a mandated design.
+      placeholder: "A possible approach would be..."
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Provide observable conditions that would make the request complete.
+      placeholder: |
+        - [ ] The learner can ...
+        - [ ] The experience works with ...
+        - [ ] The relevant tests and documentation are updated.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or workarounds
+      description: Describe any other approaches considered or currently used.
+  - type: textarea
+    id: implications
+    attributes:
+      label: Dependencies and considerations
+      description: Note accessibility, learner safety, content, API, analytics, or cross-product implications.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Submission checklist
+      options:
+        - label: "I checked for existing requests or related issues."
+          required: true
+        - label: "I described the user need without sharing secrets or personal data."
+          required: true
