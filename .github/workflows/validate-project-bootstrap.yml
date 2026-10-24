@@ -1,0 +1,52 @@
+name: Validate organization Projects tooling
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/bootstrap_projects.py"
+      - ".github/workflows/validate-project-bootstrap.yml"
+  pull_request:
+    paths:
+      - "scripts/bootstrap_projects.py"
+      - ".github/workflows/validate-project-bootstrap.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  python-syntax-and-import:
+    name: Validate Projects bootstrap script
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Validate Python syntax
+        run: python3 -m py_compile scripts/bootstrap_projects.py
+
+      - name: Check project definitions without GitHub credentials
+        run: |
+          python3 - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          path = Path("scripts/bootstrap_projects.py")
+          spec = importlib.util.spec_from_file_location("bilgin_projects", path)
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          assert list(module.PROJECTS) == [
+              "Bilgin Exam TR", "Bilgin ABC", "Bilgin Apps Roadmap"
+          ]
+          assert len(module.EXAM_ISSUES) == 13
+          assert len(module.ROADMAP_ISSUES) == 3
+          assert len(module.ABC_DRAFTS) == 10
+          assert len(module.ROADMAP_DRAFTS) == 3
+          assert [entry[0] for entry in module.STATES] == [
+              "Backlog", "Todo", "In Progress", "In Review", "Testing", "Done"
+          ]
+          print("Organization Projects bootstrap configuration validated.")
+          PY
