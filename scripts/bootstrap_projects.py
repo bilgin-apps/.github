@@ -127,6 +127,7 @@ STATES = [
 ]
 
 WARNINGS: list[str] = []
+FIELD_CACHE: dict[str, dict[str, Any]] = {}
 
 
 def run(*args: str, input_data: str | None = None, quiet: bool = False) -> str:
@@ -145,7 +146,7 @@ def json_command(*args: str) -> dict[str, Any]:
 
 
 def graphql(query: str, variables: dict[str, Any]) -> dict[str, Any]:
-    response = json_command("api", "graphql", "--input", "-") if False else run(
+    response = run(
         "api", "graphql", "--input", "-",
         input_data=json.dumps({"query": query, "variables": variables}),
         quiet=True,
@@ -298,8 +299,10 @@ def ensure_views(pid: str) -> None:
 
 
 def set_single(pid: str, item_id: str, field_name: str, name: str) -> None:
+    if pid not in FIELD_CACHE:
+        FIELD_CACHE[pid] = project_meta(pid)
     field = next(
-        (f for f in project_meta(pid).get("fields", {}).get("nodes", []) if f.get("name") == field_name),
+        (f for f in FIELD_CACHE[pid].get("fields", {}).get("nodes", []) if f.get("name") == field_name),
         None
     )
     if not field:
@@ -361,8 +364,11 @@ def ensure_links(number: int, config: dict[str, Any]) -> None:
         try:
             run("project", "link", str(number), "--owner", OWNER, "--repo", repo, quiet=True)
         except Exception as exc:
-            # Re-linking an existing repo can be rejected; do not delete or reassign it.
-            warn(f"Project/repo link needs a manual check for {repo}: {exc}")
+            # The CLI can reject already-linked repositories; this is safe on reruns.
+            if "already" in str(exc).lower():
+                print(f"  = Repository already linked: {repo}")
+            else:
+                warn(f"Project/repo link needs a manual check for {repo}: {exc}")
 
 
 def main() -> int:
