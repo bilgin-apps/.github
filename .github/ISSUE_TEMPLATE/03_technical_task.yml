@@ -1,0 +1,121 @@
+name: "Technical task"
+description: "Track engineering work such as refactoring, testing, infrastructure, or documentation."
+title: "[Task] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for actionable engineering work with a clear definition of done.
+
+        For a security vulnerability, follow the [private reporting guidance](https://github.com/bilgin-apps/.github/blob/main/SECURITY.md) rather than creating a public issue.
+  - type: dropdown
+    id: product
+    attributes:
+      label: Product or scope
+      options:
+        - "Bilgin Exam TR"
+        - "Bilgin ABC"
+        - "Cross-product / organization"
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Task category
+      options:
+        - "Refactoring / code quality"
+        - "Testing / QA"
+        - "CI/CD / deployment"
+        - "Infrastructure / operations"
+        - "Performance / reliability"
+        - "Documentation"
+        - "Data or schema migration"
+        - "Dependencies / maintenance"
+        - "Other engineering work"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - "Mobile application"
+        - "Backend / API"
+        - "Admin panel"
+        - "Website"
+        - "Shared tooling / organization"
+        - "Multiple components"
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective and context
+      description: Explain why this task is needed and what problem it addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Implementation scope
+      description: Specify what is in scope and, where useful, what is explicitly out of scope.
+      placeholder: |
+        In scope:
+        - ...
+
+        Out of scope:
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Work breakdown
+      description: List the expected implementation steps.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+      description: List verifiable completion criteria, including tests or documentation where appropriate.
+      placeholder: |
+        - [ ] Implementation matches the agreed scope
+        - [ ] Relevant automated tests pass
+        - [ ] Documentation is updated when applicable
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: Identify the checks, commands, environments, or manual QA required.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies, risks, and rollback
+      description: Mention cross-repository dependencies, migrations, compatibility, rollout, and rollback concerns.
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target environment
+      options:
+        - "Development / main"
+        - "QA / test-env"
+        - "Production / prod"
+        - "Multiple environments"
+        - "Not applicable"
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Submission checklist
+      options:
+        - label: "The task has a clear, verifiable outcome."
+          required: true
+        - label: "I removed secrets and personal information from the description."
+          required: true
