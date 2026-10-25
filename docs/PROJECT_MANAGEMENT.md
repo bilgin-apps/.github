@@ -42,7 +42,7 @@ P0 and P1 assignments should have an identified owner and a concrete next action
 | --- | --- | --- |
 | Status | Single select | Backlog, Todo, In Progress, In Review, Testing, Done |
 | Priority | Single select | P0, P1, P2, P3 |
-| Type | Single select | Feature, Bug, Technical Task, Content, Release, Security, Research |
+| Work Type | Single select | Feature, Bug, Technical Task, Content, Release, Security, Research |
 | Area | Single select | Backend, Admin, Mobile, Web, Content, Infrastructure, Product, Shared |
 | Product | Single select | Bilgin Exam TR, Bilgin ABC, Shared |
 | Sprint | Iteration | Two-week planning cadence; only populate after capacity planning |
@@ -58,7 +58,7 @@ Use built-in GitHub **Assignees**, **Labels**, and **Repository** metadata where
 Create and validate the following layouts in each board:
 
 1. **Board** — Kanban grouped by Status. Show Priority, Area, Assignee and Release where useful. Sort P0 before P1–P3. Keep Testing distinct from Done.
-2. **Table** — Planning view with Title, Status, Priority, Type, Area, Assignees, Sprint, Release and Target Date. Use for backlog grooming and sprint commitments.
+2. **Table** — Planning view with Title, Status, Priority, Work Type, Area, Assignees, Sprint, Release and Target Date. Use for backlog grooming and sprint commitments.
 3. **Roadmap** — Timeline view driven by Start Date and Target Date. Tasks without approved dates can remain unscheduled instead of assigning arbitrary deadlines.
 
 Suggested additional saved filters (create manually as needed): **P0 Release Blockers**, **Current Sprint**, **Needs Review**, **Mobile Beta**, **Content Review** and **Ready for Production**.
@@ -95,15 +95,23 @@ Suggested additional saved filters (create manually as needed): **P0 Release Blo
 - **Release readiness:** validate Testing outcomes, dependency compatibility and production readiness separately from issue closure.
 - **Portfolio review:** reconcile the product boards with the organization Roadmap, update blocked items, risks and approved milestones.
 
+## Protected issue repositories
+
+Do not create, reopen, edit, import, or restore issues from `bilgin-exam-tr-mobile` or `bilgin-exam-tr-backend`. Repository links may remain, but issue intake and automatic sub-issue intake must exclude this work. Only relevant, currently open Admin and Web issues may enter the Exam board. Do not recreate removed draft tasks.
+
+`Type` is reserved by the current GitHub Projects API. The custom classification field is named **Work Type**, retaining the options in the field table.
+
 ## Recommended automations
 
 Enable these through GitHub Projects **Workflows** only after confirming they behave correctly with private repositories and account permissions:
 
-- New issues matching each linked product repository → add to the correct Project.
+- New open issues in explicitly approved Admin/Web repositories → add to the Exam Project. Never use repository linking alone as authorization for issue intake.
 - New items → Backlog (not automatically In Progress).
 - Closing an Issue → Done only if the acceptance and QA process for that work permits it; otherwise prefer manual approval.
 - Automatic archiving → archive old completed items without deleting original Issues.
 - Pull requests → rely on linked Issues and real review status; an opened PR is not proof of completion.
+
+The current public API can read and delete native workflows, but cannot create or enable them. GitHub Free permits one auto-add rule per project. Keep automatic issue closure and completion disabled unless acceptance policy explicitly permits them. Broad automatic sub-issue intake is removed by the safe bootstrap.
 
 Native Project workflows may not cover every custom condition; use secure, reviewed GitHub Actions only when necessary and with an appropriately scoped Projects token.
 

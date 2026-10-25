@@ -6,11 +6,13 @@ account authorized to manage bilgin-apps Projects.
 Run: python3 scripts/bootstrap_projects.py
 
 This script is intentionally additive and repeatable. It does not edit or
-delete product code, repositories, branches, project items or workflows.
+delete product code, repositories, branches or project items. It disables broad
+sub-issue intake to prevent importing excluded or previously removed work.
 """
 
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import json
 import shutil
@@ -19,6 +21,8 @@ import sys
 from typing import Any
 
 OWNER = "bilgin-apps"
+# Never import or mutate issues from these repositories, even if reopened later.
+PROTECTED_REPOSITORIES = {"bilgin-exam-tr-mobile", "bilgin-exam-tr-backend"}
 
 PROJECTS = {
     "Bilgin Exam TR": {
@@ -68,17 +72,9 @@ Hold a weekly roadmap review and record decisions, owners, risks, dependencies a
 }
 
 EXAM_ISSUES = [
-    ("bilgin-exam-tr-backend", 2, "P0", "Security", "Backend"),
-    ("bilgin-exam-tr-backend", 3, "P0", "Security", "Backend"),
-    ("bilgin-exam-tr-backend", 4, "P0", "Technical Task", "Backend"),
-    ("bilgin-exam-tr-backend", 5, "P1", "Content", "Content"),
     ("bilgin-exam-tr-admin", 19, "P0", "Security", "Admin"),
     ("bilgin-exam-tr-admin", 20, "P1", "Technical Task", "Admin"),
     ("bilgin-exam-tr-admin", 21, "P1", "Release", "Admin"),
-    ("bilgin-exam-tr-mobile", 1, "P0", "Technical Task", "Mobile"),
-    ("bilgin-exam-tr-mobile", 2, "P0", "Feature", "Mobile"),
-    ("bilgin-exam-tr-mobile", 3, "P1", "Feature", "Mobile"),
-    ("bilgin-exam-tr-mobile", 4, "P1", "Release", "Mobile"),
     ("bilgin-exam-tr-web", 9, "P1", "Release", "Web"),
     ("bilgin-exam-tr-web", 10, "P1", "Technical Task", "Web"),
 ]
@@ -88,7 +84,7 @@ ROADMAP_ISSUES = [
     (".github", 3, "P1", "Technical Task", "Infrastructure"),
 ]
 ABC_DRAFTS = [
-    ("[P0] Define age-appropriate literacy outcomes and scope", "Set learning objectives by developmental stage, letter-sound progression, Turkish orthography and content review policy.", "P0", "Product", "Content"),
+    ("[P0] Define age-appropriate literacy outcomes and scope", "Set learning objectives by developmental stage, letter-sound progression, Turkish orthography and content review policy.", "P0", "Research", "Content"),
     ("[P0] Establish child-safety, data privacy and parental consent requirements", "Define privacy-by-design guardrails, parental controls, safe metrics and age-appropriate disclosures.", "P0", "Security", "Product"),
     ("[P0] Approve ABC brand, characters and mobile design system", "Keep the Bilgin mascot recognizable; document scalable UI tokens, character usage and accessible components.", "P0", "Feature", "Product"),
     ("[P0] Specify Bilgin ABC technical architecture and repositories", "Confirm mobile framework, backend reuse boundaries, offline requirements and secure environments before creating repos.", "P0", "Technical Task", "Infrastructure"),
@@ -100,14 +96,14 @@ ABC_DRAFTS = [
     ("[P2] Define offline usability and inclusive-learning QA", "Validate slow networks, device constraints, text-to-speech needs, accessibility and graceful recovery.", "P2", "Technical Task", "Mobile"),
 ]
 ROADMAP_DRAFTS = [
-    ("[P1] Align Bilgin Apps product architecture and brand boundaries", "Define shared and product-specific design, infrastructure and documentation ownership.", "P1", "Product", "Shared"),
+    ("[P1] Align Bilgin Apps product architecture and brand boundaries", "Define shared and product-specific design, infrastructure and documentation ownership.", "P1", "Research", "Shared"),
     ("[P1] Establish launch-readiness scorecards for both products", "Track approved release criteria rather than guessed dates: content, store, security, privacy and support readiness.", "P1", "Release", "Shared"),
     ("[P2] Define privacy-conscious product analytics and observability", "Select minimum necessary metrics, consent requirements, service alerts and incident ownership.", "P2", "Technical Task", "Infrastructure"),
 ]
 
 SINGLE_FIELDS = {
     "Priority": ["P0", "P1", "P2", "P3"],
-    "Type": ["Feature", "Bug", "Technical Task", "Content", "Release", "Security", "Research"],
+    "Work Type": ["Feature", "Bug", "Technical Task", "Content", "Release", "Security", "Research"],
     "Area": ["Backend", "Admin", "Mobile", "Web", "Content", "Infrastructure", "Product", "Shared"],
     "Product": ["Bilgin Exam TR", "Bilgin ABC", "Shared"],
 }
@@ -195,19 +191,26 @@ def project_id(number: int) -> str:
 def project_meta(pid: str) -> dict[str, Any]:
     query = """query($id:ID!) {
       node(id:$id) { ... on ProjectV2 {
-        fields(first:100) { nodes {
-          ... on ProjectV2FieldCommon { id name }
+        fields(first:100) { pageInfo { hasNextPage } nodes {
+          ... on ProjectV2FieldCommon { id name dataType }
+          ... on ProjectV2IterationField { configuration { duration startDay iterations { id title startDate duration } } }
           ... on ProjectV2SingleSelectField { id name options { id name } }
         }}
-        views(first:40) { nodes { id name layout } }
+        views(first:100) { pageInfo { hasNextPage } nodes { id name layout } }
       }}
     }"""
-    return graphql(query, {"id": pid}).get("node") or {}
+    meta = graphql(query, {"id": pid}).get("node") or {}
+    if any(meta.get(key, {}).get("pageInfo", {}).get("hasNextPage") for key in ("fields", "views")):
+        raise RuntimeError("Project metadata exceeds this tool's limit; refusing partial reconciliation.")
+    return meta
 
 
 def ensure_field(number: int, name: str, field_type: str, options: list[str] | None = None) -> None:
-    fields = json_command("project", "field-list", str(number), "--owner", OWNER, "--format", "json").get("fields", [])
-    if any(f.get("name") == name for f in fields):
+    fields = json_command("project", "field-list", str(number), "--owner", OWNER, "--limit", "100", "--format", "json").get("fields", [])
+    existing = next((f for f in fields if f.get("name") == name), None)
+    if existing:
+        if options and {o["name"] for o in existing.get("options", [])} != set(options):
+            raise RuntimeError(f"Existing {name} options differ from the agreed configuration.")
         return
     cmd = ["project", "field-create", str(number), "--owner", OWNER, "--name", name, "--data-type", field_type]
     if options:
@@ -220,7 +223,7 @@ def ensure_sprint_field(pid: str) -> None:
     meta = project_meta(pid)
     if any(f.get("name") == "Sprint" for f in meta.get("fields", {}).get("nodes", [])):
         return
-    today = dt.date.today()
+    today = dt.datetime.now(dt.timezone(dt.timedelta(hours=3))).date()
     first_monday = today + dt.timedelta(days=(7 - today.weekday()) % 7)
     input_value = {
         "projectId": pid,
@@ -267,35 +270,51 @@ def configure_status(pid: str, is_new: bool) -> None:
         warn(f"Could not update six-stage Status: {exc}. Configure options manually.")
 
 
-def ensure_views(pid: str) -> None:
-    layouts = {"Board": "BOARD_LAYOUT", "Table": "TABLE_LAYOUT", "Roadmap": "ROADMAP_LAYOUT"}
+def ensure_views(number: int, pid: str, is_new: bool = False) -> None:
+    # GraphQL exposes only visible columns. The current REST API additionally
+    # supports grouping and sorting, using numeric REST field IDs.
     meta = project_meta(pid)
-    views = meta.get("views", {}).get("nodes", [])
-    by_name = {v.get("name"): v for v in views}
-    # New GitHub Projects can start with a default unnamed view.
-    if "Table" not in by_name:
-        default = next((v for v in views if v.get("name", "").lower().startswith("view ") and v.get("layout") == "TABLE_LAYOUT"), None)
-        if default:
-            query = """mutation($input:UpdateProjectV2ViewInput!) {
-              updateProjectV2View(input:$input) { projectV2View { id name } }
-            }"""
-            try:
-                graphql(query, {"input": {"viewId": default["id"], "name": "Table"}})
-                by_name["Table"] = default
-                print("  ~ Renamed default view to Table")
-            except Exception as exc:
-                warn(f"Could not rename default view: {exc}")
-    query = """mutation($input:CreateProjectV2ViewInput!) {
-      createProjectV2View(input:$input) { projectV2View { id name layout } }
-    }"""
-    for name, layout in layouts.items():
+    by_name = {v["name"]: v for v in meta.get("views", {}).get("nodes", [])}
+    response = run("api", "--paginate", "--slurp", "-H", "X-GitHub-Api-Version: 2026-03-10",
+                   f"orgs/{OWNER}/projectsV2/{number}/fields?per_page=100", quiet=True)
+    pages = json.loads(response)
+    if not isinstance(pages, list) or not all(isinstance(page, list) for page in pages):
+        raise RuntimeError("Unexpected paginated field response")
+    rest_fields = [field for page in pages for field in page]
+    fields = {f["name"]: f["id"] for f in rest_fields}
+    columns = {
+        "Table": ["Title", "Status", "Priority", "Work Type", "Area", "Assignees", "Sprint", "Release", "Target Date"],
+        "Board": ["Title", "Priority", "Area", "Assignees", "Release"],
+    }
+    for name, layout in (("Board", "board"), ("Table", "table"), ("Roadmap", "roadmap")):
         if name in by_name:
+            if by_name[name]["layout"] != layout.upper() + "_LAYOUT":
+                warn(f"Existing view {name} has an unexpected layout; review manually.")
             continue
-        try:
-            graphql(query, {"input": {"projectId": pid, "name": name, "layout": layout}})
-            print(f"  + View: {name}")
-        except Exception as exc:
-            warn(f"Could not create {name} view: {exc}. Add it from GitHub UI.")
+        payload = {"name": name, "layout": layout,
+                   "sort_by": [[fields["Priority"], "asc"]]}
+        if name in columns:
+            payload["visible_fields"] = [fields[n] for n in columns[name]]
+        if name == "Board":
+            payload["vertical_group_by"] = [fields["Status"]]
+        result = run("api", "--method", "POST", "-H", "X-GitHub-Api-Version: 2026-03-10",
+                     f"orgs/{OWNER}/projectsV2/{number}/views", "--input", "-",
+                     input_data=json.dumps(payload), quiet=True)
+        # Current API responses may omit node_id. Verify the saved object using
+        # an independent GraphQL read instead of trusting a response envelope.
+        saved = [v for v in project_meta(pid).get("views", {}).get("nodes", []) if v["name"] == name]
+        if len(saved) != 1 or saved[0]["layout"] != layout.upper() + "_LAYOUT":
+            raise RuntimeError(f"Saved view verification failed for {name}")
+        print(f"  + Configured view: {name}")
+    if is_new and "View 1" in by_name:
+        # Only remove the untouched view generated for a project we just created;
+        # project items are independent of views and are never removed here.
+        saved = project_meta(pid)["views"]["nodes"]
+        if {"Board", "Table", "Roadmap"} <= {v["name"] for v in saved}:
+            graphql("""mutation($id:ID!){deleteProjectV2View(input:{viewId:$id}){
+                clientMutationId
+            }}""", {"id": by_name["View 1"]["id"]})
+    warn("Roadmap date mapping and native workflow rules require UI verification; no supported write controls are exposed for them.")
 
 
 def set_single(pid: str, item_id: str, field_name: str, name: str) -> None:
@@ -325,20 +344,38 @@ def set_single(pid: str, item_id: str, field_name: str, name: str) -> None:
 
 
 def current_items(number: int) -> list[dict[str, Any]]:
-    data = json_command("project", "item-list", str(number), "--owner", OWNER, "--limit", "500", "--format", "json")
-    return data.get("items", [])
+    data = json_command("project", "item-list", str(number), "--owner", OWNER, "--limit", "10000", "--format", "json")
+    items = data.get("items", [])
+    if data.get("totalCount", len(items)) > len(items):
+        raise RuntimeError("Incomplete project item list; refusing to risk duplicate items")
+    return items
 
 
 def add_issue(number: int, pid: str, url: str, priority: str, kind: str, area: str, product: str, items: list[dict[str, Any]]) -> None:
+    from urllib.parse import urlparse
+    parts = urlparse(url)
+    segments = parts.path.strip("/").split("/")
+    if parts.netloc != "github.com" or len(segments) != 4 or segments[0] != OWNER or segments[2] != "issues":
+        raise RuntimeError(f"Refusing unexpected issue URL: {url}")
+    repo, issue_number = segments[1], segments[3]
+    if repo in PROTECTED_REPOSITORIES:
+        print(f"  = Protected repository excluded: {repo}")
+        return
     found = next((i for i in items if (i.get("content") or {}).get("url") == url), None)
     if found:
+        return
+    # Query the issue resource itself: deleted/missing issues fail closed, never recreate.
+    source = json_command("api", f"repos/{OWNER}/{repo}/issues/{issue_number}")
+    if source.get("state") != "open" or source.get("pull_request"):
+        print(f"  = Skipped closed issue or pull request: {url}")
         return
     try:
         item = json_command("project", "item-add", str(number), "--owner", OWNER, "--url", url, "--format", "json")
         item_id = item.get("id")
         if item_id:
-            for field, value in (("Status", "Backlog"), ("Priority", priority), ("Type", kind), ("Area", area), ("Product", product)):
+            for field, value in (("Status", "Backlog"), ("Priority", priority), ("Work Type", kind), ("Area", area), ("Product", product)):
                 set_single(pid, item_id, field, value)
+        items.append({"id": item_id, "content": {"url": url}})
         print(f"  + Linked Issue: {url}")
     except Exception as exc:
         warn(f"Could not add Issue {url}: {exc}")
@@ -352,17 +389,33 @@ def add_draft(number: int, pid: str, title: str, body: str, priority: str, kind:
                             "--title", title, "--body", body, "--format", "json")
         item_id = item.get("id")
         if item_id:
-            for field, value in (("Status", "Backlog"), ("Priority", priority), ("Type", kind), ("Area", area), ("Product", product)):
+            for field, value in (("Status", "Backlog"), ("Priority", priority), ("Work Type", kind), ("Area", area), ("Product", product)):
                 set_single(pid, item_id, field, value)
+        items.append({"id": item_id, "title": title})
         print(f"  + Draft: {title}")
     except Exception as exc:
         warn(f"Could not create draft {title!r}: {exc}")
 
 
+def disable_unsafe_subissue_intake(pid: str) -> None:
+    query = """query($id:ID!) {node(id:$id){... on ProjectV2 {
+        workflows(first:100){nodes{id name enabled}}
+    }}}"""
+    meta = graphql(query, {"id": pid})["node"]
+    for workflow in meta["workflows"]["nodes"]:
+        if workflow["name"] == "Auto-add sub-issues to project" and workflow["enabled"]:
+            graphql("""mutation($id:ID!){deleteProjectV2Workflow(input:{workflowId:$id}){
+                deletedWorkflowId
+            }}""", {"id": workflow["id"]})
+    actual = graphql(query, {"id": pid})["node"]["workflows"]["nodes"]
+    if any(w["name"] == "Auto-add sub-issues to project" and w["enabled"] for w in actual):
+        raise RuntimeError("Broad sub-issue intake remains enabled; refusing to import issues")
+
+
 def ensure_links(number: int, config: dict[str, Any]) -> None:
     for repo in config["repos"]:
         try:
-            run("project", "link", str(number), "--owner", OWNER, "--repo", repo, quiet=True)
+            run("project", "link", str(number), "--owner", OWNER, "--repo", f"{OWNER}/{repo}", quiet=True)
         except Exception as exc:
             # The CLI can reject already-linked repositories; this is safe on reruns.
             if "already" in str(exc).lower():
@@ -372,6 +425,10 @@ def ensure_links(number: int, config: dict[str, Any]) -> None:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--seed-new-project-drafts", action="store_true",
+                        help="Explicitly seed documented drafts, only when creating a new project")
+    args = parser.parse_args()
     if shutil.which("gh") is None:
         print("GitHub CLI not found. Install from https://cli.github.com/ and run gh auth login.", file=sys.stderr)
         return 2
@@ -398,7 +455,8 @@ def main() -> int:
             for name, field_type in OTHER_FIELDS.items():
                 ensure_field(number, name, field_type)
             ensure_sprint_field(pid)
-            ensure_views(pid)
+            ensure_views(number, pid, newly_created)
+            disable_unsafe_subissue_intake(pid)
             ensure_links(number, cfg)
             items = current_items(number)
             if title == "Bilgin Exam TR":
@@ -406,13 +464,13 @@ def main() -> int:
                     url = f"https://github.com/{OWNER}/{repo}/issues/{issue_number}"
                     add_issue(number, pid, url, priority, kind, area, title, items)
             elif title == "Bilgin ABC":
-                for draft in ABC_DRAFTS:
+                for draft in (ABC_DRAFTS if args.seed_new_project_drafts and newly_created else []):
                     add_draft(number, pid, *draft, title, items)
             else:
                 for repo, issue_number, priority, kind, area in ROADMAP_ISSUES:
                     url = f"https://github.com/{OWNER}/{repo}/issues/{issue_number}"
                     add_issue(number, pid, url, priority, kind, area, "Shared", items)
-                for draft in ROADMAP_DRAFTS:
+                for draft in (ROADMAP_DRAFTS if args.seed_new_project_drafts and newly_created else []):
                     add_draft(number, pid, *draft, "Shared", items)
             results[title] = number
             print(f"  Project: https://github.com/orgs/{OWNER}/projects/{number}")
@@ -427,7 +485,10 @@ def main() -> int:
             items = current_items(number)
             print(f"  Fields: {', '.join(f.get('name', '?') for f in fields.get('fields', []))}")
             print(f"  Items: {len(items)}")
-            print("  Visibility: configured PRIVATE; confirm through the GitHub UI.")
+            actual = json_command("project", "view", str(number), "--owner", OWNER, "--format", "json")
+            if actual.get("public") is not False:
+                raise RuntimeError("Project privacy verification failed")
+            print("  Visibility: verified PRIVATE via API")
         except Exception as exc:
             warn(f"Could not verify project #{number}: {exc}")
     if WARNINGS:
