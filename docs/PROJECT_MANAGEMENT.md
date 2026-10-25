@@ -8,7 +8,7 @@ This document defines the shared operating model for Bilgin Apps' **private GitH
 
 | Project | Ownership | Scope | Source of work |
 | --- | --- | --- | --- |
-| **Bilgin Exam TR** | Exam product maintainers | Backend, Admin, Mobile, Web, educational content, beta and release readiness | Issues in four private Exam TR repositories |
+| **Bilgin Exam TR** | Exam product maintainers | Backend, Admin, Mobile, Web, educational content, beta and release readiness | Relevant open Admin/Web issues; Backend/Mobile issue intake is protected |
 | **Bilgin ABC** | ABC product maintainers | Turkish early literacy, characters, curriculum, pedagogy, mobile development and parent experience | Private Project drafts until dedicated ABC repositories exist |
 | **Bilgin Apps Roadmap** | Organization and product owners | Milestones, product strategy, shared architecture, security, operational readiness, launch dependencies | Roadmap-level issues and project drafts; link to implementation issues without duplicating them |
 
@@ -131,3 +131,5 @@ Native Project workflows may not cover every custom condition; use secure, revie
 - [Release process](RELEASE_PROCESS.md)
 - [Contribution guidance](../CONTRIBUTING.md)
 - [Issue templates](../.github/ISSUE_TEMPLATE/)
+
+For the saved live configuration and verification boundaries, see [PROJECTS_VERIFICATION.md](PROJECTS_VERIFICATION.md).

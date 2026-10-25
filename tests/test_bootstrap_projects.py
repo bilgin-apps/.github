@@ -45,11 +45,11 @@ class ProjectsBootstrapTests(unittest.TestCase):
         self.assertIn("PRIVATE", args)
 
     def test_existing_issue_is_not_added_twice(self):
-        url = "https://github.com/bilgin-apps/bilgin-exam-tr-mobile/issues/1"
+        url = "https://github.com/bilgin-apps/bilgin-exam-tr-web/issues/9"
         items = [{"id": "item-id", "content": {"url": url}}]
         with patch.object(MODULE, "json_command") as api:
             MODULE.add_issue(1, "project-id", url, "P0", "Feature",
-                             "Mobile", "Bilgin Exam TR", items)
+                             "Web", "Bilgin Exam TR", items)
         api.assert_not_called()
 
     def test_existing_draft_is_not_added_twice(self):

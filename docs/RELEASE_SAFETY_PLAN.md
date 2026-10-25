@@ -15,13 +15,15 @@ The requesting organization administrator coordinates intake, evidence collectio
 
 Candidate checks observed in repository workflow definitions (revalidate their emitted names and current applicability before enforcement):
 
-| Surface | Candidate check | Applicability |
+| Surface | Exact emitted check name | Verification |
 | --- | --- | --- |
-| Backend | CI / test | Existing quality pipeline; verify PR triggers for all intended targets |
-| Admin | Quality / Lint, types, unit, integration, build | Existing quality pipeline |
-| Admin | Quality / Auth smoke E2E | Existing loopback-only browser verification |
-| Organization tooling | Validate Projects bootstrap script | Public organization configuration only |
-| Mobile and Web | None currently established by this audit | Do not require nonexistent checks |
+| Backend | `test` | Successful GitHub check on the audited default-branch commit; workflow CI |
+| Admin | `Lint, types, unit, integration, build` | Successful GitHub check on the audited default-branch commit; workflow Quality |
+| Admin | `Auth smoke E2E` | Successful GitHub check on the audited default-branch commit; workflow Quality |
+| Organization tooling | `Validate Projects bootstrap script` | Successful GitHub check on the Projects tooling PR |
+| Mobile and Web | None currently emitted on the audited default-branch commits | Do not require nonexistent checks |
+
+These are observed check names, not a permanent guarantee. Revalidate the current commit, originating GitHub App and PR-target triggers immediately before enforcement. Keep deployment-provider metadata and private environment inventories in maintainer-controlled records rather than public issue comments.
 
 ## Phase 2 — Prepare a pilot, then obtain enforcement approval
 
