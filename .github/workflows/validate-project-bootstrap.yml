@@ -43,7 +43,7 @@ jobs:
           assert list(module.PROJECTS) == [
               "Bilgin Exam TR", "Bilgin ABC", "Bilgin Apps Roadmap"
           ]
-          assert len(module.EXAM_ISSUES) == 13
+          assert len(module.EXAM_ISSUES) == 5
           assert len(module.ROADMAP_ISSUES) == 3
           assert len(module.ABC_DRAFTS) == 10
           assert len(module.ROADMAP_DRAFTS) == 3
